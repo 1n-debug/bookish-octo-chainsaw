@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dice Dominion Casino</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e14;
+      --panel: #121826;
+      --panel-alt: #172035;
+      --accent: #49f2c2;
+      --accent-soft: rgba(73, 242, 194, 0.2);
+      --danger: #ff5f7a;
+      --warning: #ffcc4d;
+      --good: #7dff8b;
+      --text: #e5e9f2;
+      --muted: #9aa4bf;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    #app {
+      width: min(440px, 100%);
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 16px 40px;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      margin: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel.alt {
+      background: var(--panel-alt);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      font-size: 0.9rem;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #2af2c2, #39a4ff);
+      color: #0b0e14;
+      font-weight: 600;
+    }
+
+    button.danger {
+      background: rgba(255, 95, 122, 0.25);
+      color: #ffe0e6;
+    }
+
+    button.warning {
+      background: rgba(255, 204, 77, 0.25);
+      color: #fff2c5;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    input,
+    select {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 10px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 0.9rem;
+      width: 100%;
+      max-width: 120px;
+    }
+
+    .log {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+
+    .log p {
+      margin: 0 0 6px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: rgba(255, 255, 255, 0.12);
+      margin-right: 6px;
+    }
+
+    .animated-text {
+      font-family: "Courier New", monospace;
+      color: var(--accent);
+      min-height: 24px;
+    }
+
+    .weather-layer,
+    .lens-flare,
+    .fog-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .weather-layer {
+      background: repeating-linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0.06),
+        rgba(255, 255, 255, 0.06) 2px,
+        transparent 2px,
+        transparent 10px
+      );
+      animation: rain 6s linear infinite;
+      opacity: 0.4;
+    }
+
+    .fog-layer {
+      background: radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.1), transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08), transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(255, 255, 255, 0.05), transparent 45%);
+      animation: fog 16s ease-in-out infinite;
+      opacity: 0.6;
+      mix-blend-mode: screen;
+    }
+
+    .lens-flare {
+      background: radial-gradient(circle at 80% 20%, rgba(255, 240, 180, 0.3), transparent 35%),
+        radial-gradient(circle at 85% 25%, rgba(255, 240, 180, 0.1), transparent 50%);
+      opacity: 0.8;
+      animation: flare 12s ease-in-out infinite;
+      mix-blend-mode: screen;
+    }
+
+    .overlay-message {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 14, 20, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      font-size: 1.2rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .overlay-message.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .home-title {
+      font-size: 1.6rem;
+      margin-bottom: 4px;
+    }
+
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .list li {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    @keyframes rain {
+      0% {
+        background-position: 0 0;
+      }
+      100% {
+        background-position: 200px 400px;
+      }
+    }
+
+    @keyframes fog {
+      0%,
+      100% {
+        opacity: 0.5;
+      }
+      50% {
+        opacity: 0.8;
+      }
+    }
+
+    @keyframes flare {
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+      50% {
+        opacity: 0.9;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="weather-layer"></div>
+  <div class="fog-layer"></div>
+  <div class="lens-flare"></div>
+
+  <div id="app">
+    <header>
+      <h1>Dice Dominion</h1>
+      <button id="soundToggle" class="warning">Sound: On</button>
+    </header>
+
+    <section class="panel alt" id="statusPanel">
+      <div class="stat-grid">
+        <div class="stat"><strong>Balance</strong><div id="balance">£1,000</div></div>
+        <div class="stat"><strong>Debt</strong><div id="debt">£0</div></div>
+        <div class="stat"><strong>Casino Rep</strong><div id="reputation">Clean</div></div>
+        <div class="stat"><strong>Weather</strong><div id="weather">Stormy</div></div>
+        <div class="stat"><strong>High Score</strong><div id="highScore">£0</div></div>
+        <div class="stat"><strong>Perk</strong><div id="perkStatus">None</div></div>
+      </div>
+      <p class="muted" id="ticker">Payday in 5 lines • Fines in 25s</p>
+    </section>
+
+    <section class="screen active" id="homeScreen">
+      <div class="panel">
+        <div class="home-title">Welcome home, high roller.</div>
+        <p class="muted">Choose your next move. Your score only counts if you cash out.</p>
+        <div class="menu">
+          <button class="primary" data-screen="casinoScreen">Enter Casino</button>
+          <button data-screen="bankScreen">Visit Bank</button>
+          <button data-screen="garageScreen">Garage</button>
+          <button data-screen="crimeScreen">Street Hustles</button>
+          <button data-screen="investScreen">Investments</button>
+          <button data-screen="shopScreen">Power-Up Shop</button>
+          <button data-screen="statsScreen">Statements</button>
+          <button data-screen="settingsScreen">Settings</button>
+          <button class="danger" id="cashOut">Cash Out</button>
+        </div>
+      </div>
+      <div class="panel alt">
+        <strong>Daily Pressure</strong>
+        <p class="muted">Random fines, protection fees, and loan interest keep ticking. Stay active to survive.</p>
+        <div class="animated-text" id="homeBanner">Waiting on your move...</div>
+        <div class="input-row">
+          <button id="emergencyLoan" class="warning">Emergency Loan (£200)</button>
+          <button id="admitDefeat" class="danger">Admit Defeat</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="casinoScreen">
+      <div class="panel">
+        <strong>Enter Casino</strong>
+        <p class="muted">Main table: pick two dice numbers (1-6). Power rule decides payouts.</p>
+        <div class="input-row">
+          <input type="number" id="guessOne" min="1" max="6" placeholder="Guess #1" />
+          <input type="number" id="guessTwo" min="1" max="6" placeholder="Guess #2" />
+          <input type="number" id="betAmount" min="10" step="10" placeholder="Bet (£)" />
+          <button class="primary" id="playDice">Roll Dice</button>
+        </div>
+        <p class="muted">Power Rule: Same diff ➜ both numbers ➜ one number ➜ same sum.</p>
+      </div>
+      <div class="panel alt">
+        <strong>More Games</strong>
+        <div class="menu">
+          <button data-game="slots">Shadow Slots</button>
+          <button data-game="coin">Coin Clash</button>
+          <button data-game="roulette">Neon Roulette</button>
+          <button data-game="highlow">High-Low</button>
+        </div>
+      </div>
+      <div class="panel">
+        <strong>Casino Log</strong>
+        <div class="log" id="casinoLog"></div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="bankScreen">
+      <div class="panel">
+        <strong>Bank Desk</strong>
+        <p class="muted">Loans are easy to grab. Interest hits every payday.</p>
+        <div class="input-row">
+          <input type="number" id="loanAmount" min="50" step="50" placeholder="Loan (£)" />
+          <select id="loanRate">
+            <option value="0.06">6% / payday</option>
+            <option value="0.1">10% / payday</option>
+            <option value="0.14">14% / payday</option>
+          </select>
+          <button class="primary" id="takeLoan">Take Loan</button>
+        </div>
+        <div class="input-row">
+          <input type="number" id="repayAmount" min="10" step="10" placeholder="Repay (£)" />
+          <button id="repayLoan">Repay Loan</button>
+        </div>
+      </div>
+      <div class="panel alt">
+        <strong>Protection Fees</strong>
+        <p class="muted">Keep the casino calm. Pay to lower security heat.</p>
+        <div class="input-row">
+          <button id="payProtection">Pay £150</button>
+          <button class="danger" id="bribeSecurity">Bribe £300</button>
+        </div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="garageScreen">
+      <div class="panel">
+        <strong>Garage</strong>
+        <ul class="list" id="garageList"></ul>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="crimeScreen">
+      <div class="panel">
+        <strong>Street Hustles</strong>
+        <p class="muted">High risk. Casino security rises if you get sloppy.</p>
+        <div class="menu">
+          <button data-crime="pickpocket">Pickpocket (£80)</button>
+          <button data-crime="rig">Rig Slot (£200)</button>
+          <button data-crime="heist">Mini Heist (£500)</button>
+          <button data-crime="hack">Crypto Hack (£300)</button>
+        </div>
+      </div>
+      <div class="panel alt">
+        <strong>Heat Meter</strong>
+        <div class="muted" id="heatMeter">Security Heat: Low</div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="investScreen">
+      <div class="panel">
+        <strong>Investments</strong>
+        <p class="muted">Invest to grow passive income. Volatile returns.</p>
+        <div class="input-row">
+          <input type="number" id="investAmount" min="50" step="50" placeholder="Invest (£)" />
+          <select id="investType">
+            <option value="crypto">Crypto Surge</option>
+            <option value="realestate">Real Estate</option>
+            <option value="stocks">Shadow Stocks</option>
+          </select>
+          <button class="primary" id="makeInvestment">Invest</button>
+        </div>
+        <div class="log" id="investLog"></div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="shopScreen">
+      <div class="panel">
+        <strong>Power-Up Shop</strong>
+        <p class="muted">Stack perks to survive the grind. One of each only.</p>
+        <ul class="list" id="shopList"></ul>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="statsScreen">
+      <div class="panel">
+        <strong>Statements</strong>
+        <p class="muted">Bank statements and casino ledger.</p>
+        <div class="log" id="statementLog"></div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
+    <section class="screen" id="settingsScreen">
+      <div class="panel">
+        <strong>Settings</strong>
+        <div class="menu">
+          <button id="toggleHardMode">Hard Mode: Off</button>
+          <button id="toggleWeather">Weather FX: On</button>
+          <button id="resetGame" class="danger">Reset Game</button>
+        </div>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+  </div>
+
+  <div class="overlay-message" id="overlay"></div>
+
+  <script>
+    const state = {
+      balance: 1000,
+      debt: 0,
+      lineCount: 0,
+      payCycle: 5,
+      securityHeat: 0,
+      reputation: "Clean",
+      hardMode: false,
+      soundOn: true,
+      weatherOn: true,
+      highScore: Number(localStorage.getItem("diceDominionHighScore") || 0),
+      perks: {
+        luckyCharm: false,
+        riskShield: false,
+        heatScrambler: false
+      },
+      investments: [],
+      garage: [
+        { name: "Pocket Scooter", price: 300, owned: false, perk: "+1 line payout" },
+        { name: "Midnight Coupe", price: 1200, owned: false, perk: "+5% casino wins" },
+        { name: "Phantom SUV", price: 2500, owned: false, perk: "fines -20%" },
+        { name: "Neon Hypercar", price: 6000, owned: false, perk: "casino losses -10%" }
+      ],
+      ledger: [],
+      shop: [
+        { id: "luckyCharm", name: "Lucky Charm", price: 500, perk: "Sum wins +25%" },
+        { id: "riskShield", name: "Risk Shield", price: 700, perk: "Diff losses -25%" },
+        { id: "heatScrambler", name: "Heat Scrambler", price: 400, perk: "Security heat -1 on wins" }
+      ]
+    };
+
+    const weatherCycle = ["Stormy", "Neon Rain", "Dusty Wind", "Foggy", "Heatwave"]; 
+    let weatherIndex = 0;
+    let fineTimer = null;
+    let overlayTimer = null;
+    let audioContext = null;
+
+    const balanceEl = document.getElementById("balance");
+    const debtEl = document.getElementById("debt");
+    const reputationEl = document.getElementById("reputation");
+    const weatherEl = document.getElementById("weather");
+    const highScoreEl = document.getElementById("highScore");
+    const perkStatusEl = document.getElementById("perkStatus");
+    const tickerEl = document.getElementById("ticker");
+    const casinoLog = document.getElementById("casinoLog");
+    const investLog = document.getElementById("investLog");
+    const statementLog = document.getElementById("statementLog");
+    const overlay = document.getElementById("overlay");
+    const heatMeter = document.getElementById("heatMeter");
+    const homeBanner = document.getElementById("homeBanner");
+
+    function formatMoney(amount) {
+      return `£${amount.toLocaleString()}`;
+    }
+
+    function logEntry(target, message, tag) {
+      const entry = document.createElement("p");
+      if (tag) {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = tag;
+        entry.appendChild(span);
+      }
+      entry.appendChild(document.createTextNode(message));
+      target.prepend(entry);
+    }
+
+    function addLedger(message) {
+      state.ledger.unshift({ message, time: new Date().toLocaleTimeString() });
+      renderStatements();
+    }
+
+    function renderStatements() {
+      statementLog.innerHTML = "";
+      state.ledger.slice(0, 40).forEach((item) => {
+        const line = document.createElement("p");
+        line.textContent = `[${item.time}] ${item.message}`;
+        statementLog.appendChild(line);
+      });
+    }
+
+    function playTone(type) {
+      if (!state.soundOn) return;
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = type === "win" ? "triangle" : type === "lose" ? "sawtooth" : "sine";
+      oscillator.frequency.value = type === "win" ? 920 : type === "lose" ? 180 : 520;
+      gain.gain.value = 0.05;
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.2);
+    }
+
+    function updateUI() {
+      balanceEl.textContent = formatMoney(state.balance);
+      debtEl.textContent = formatMoney(state.debt);
+      reputationEl.textContent = state.reputation;
+      weatherEl.textContent = weatherCycle[weatherIndex];
+      highScoreEl.textContent = formatMoney(state.highScore);
+      perkStatusEl.textContent = [
+        state.perks.luckyCharm ? "Lucky" : null,
+        state.perks.riskShield ? "Shielded" : null,
+        state.perks.heatScrambler ? "Cool" : null
+      ].filter(Boolean).join(" • ") || "None";
+      tickerEl.textContent = `Payday in ${state.payCycle - (state.lineCount % state.payCycle)} lines • Fines in 25s`;
+      heatMeter.textContent = `Security Heat: ${state.securityHeat < 2 ? "Low" : state.securityHeat < 4 ? "Medium" : "High"}`;
+      homeBanner.textContent = state.balance <= 0 ? "You're broke. Loan or defeat?" : "Waiting on your move...";
+      renderGarage();
+      renderShop();
+    }
+
+    function advanceLine(activity) {
+      state.lineCount += 1;
+      if (state.lineCount % state.payCycle === 0) {
+        const payout = 120 + (state.garage[0].owned ? 30 : 0);
+        state.balance += payout;
+        addLedger(`Payday hit: ${formatMoney(payout)} credited.`);
+        applyInterest();
+        processInvestments();
+      }
+      if (activity) {
+        addLedger(activity);
+      }
+      updateUI();
+      checkBankruptcy();
+    }
+
+    function applyInterest() {
+      if (state.debt <= 0) return;
+      const interestRate = state.hardMode ? 0.12 : 0.08;
+      const interest = Math.ceil(state.debt * interestRate);
+      state.debt += interest;
+      addLedger(`Loan interest applied: ${formatMoney(interest)} added.`);
+    }
+
+    function applyTimedInterest() {
+      if (state.debt <= 0) return;
+      const interestRate = state.hardMode ? 0.04 : 0.03;
+      const interest = Math.ceil(state.debt * interestRate);
+      state.debt += interest;
+      addLedger(`Timed interest: ${formatMoney(interest)} added.`);
+      updateUI();
+    }
+
+    function processInvestments() {
+      state.investments.forEach((investment) => {
+        const volatility = investment.type === "crypto" ? 0.35 : investment.type === "stocks" ? 0.2 : 0.12;
+        const multiplier = 1 + (Math.random() * volatility - volatility / 2);
+        const newValue = Math.max(10, Math.round(investment.value * multiplier));
+        investment.value = newValue;
+      });
+      renderInvestments();
+    }
+
+    function renderInvestments() {
+      investLog.innerHTML = "";
+      state.investments.forEach((investment) => {
+        const entry = document.createElement("p");
+        entry.textContent = `${investment.type.toUpperCase()} fund: ${formatMoney(investment.value)} (paid ${formatMoney(investment.cost)})`;
+        investLog.appendChild(entry);
+      });
+      if (state.investments.length === 0) {
+        investLog.innerHTML = "<p class='muted'>No active investments.</p>";
+      }
+    }
+
+    function renderGarage() {
+      const list = document.getElementById("garageList");
+      list.innerHTML = "";
+      state.garage.forEach((item) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.textContent = item.owned ? "Owned" : `Buy ${item.name} (${formatMoney(item.price)})`;
+        btn.disabled = item.owned;
+        btn.addEventListener("click", () => purchaseCar(item));
+        li.innerHTML = `<strong>${item.name}</strong><br /><span class='muted'>${item.perk}</span>`;
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function renderShop() {
+      const list = document.getElementById("shopList");
+      if (!list) return;
+      list.innerHTML = "";
+      state.shop.forEach((item) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        const owned = state.perks[item.id];
+        btn.textContent = owned ? "Owned" : `Buy ${item.name} (${formatMoney(item.price)})`;
+        btn.disabled = owned;
+        btn.addEventListener("click", () => purchasePerk(item));
+        li.innerHTML = `<strong>${item.name}</strong><br /><span class='muted'>${item.perk}</span>`;
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function purchasePerk(item) {
+      if (state.balance < item.price) {
+        logEntry(casinoLog, "Not enough cash for power-up.", "SHOP");
+        playTone("lose");
+        return;
+      }
+      if (state.perks[item.id]) return;
+      state.balance -= item.price;
+      state.perks[item.id] = true;
+      showOverlay(`Power-up unlocked: ${item.name}`);
+      addLedger(`Power-up purchased: ${item.name} for ${formatMoney(item.price)}.`);
+      playTone("win");
+      advanceLine("Power-up purchase logged.");
+    }
+
+    function purchaseCar(item) {
+      if (item.owned || state.balance < item.price) {
+        logEntry(casinoLog, "Purchase failed. Not enough cash.", "GARAGE");
+        playTone("lose");
+        return;
+      }
+      state.balance -= item.price;
+      item.owned = true;
+      showOverlay(`Car purchased: ${item.name}`);
+      addLedger(`Garage purchase: ${item.name} for ${formatMoney(item.price)}.`);
+      playTone("win");
+      advanceLine("Garage transaction logged.");
+    }
+
+    function showOverlay(message) {
+      overlay.textContent = message;
+      overlay.classList.add("active");
+      clearTimeout(overlayTimer);
+      overlayTimer = setTimeout(() => overlay.classList.remove("active"), 1400);
+    }
+
+    function rollDice() {
+      const g1 = Number(document.getElementById("guessOne").value);
+      const g2 = Number(document.getElementById("guessTwo").value);
+      const bet = Number(document.getElementById("betAmount").value);
+      if (![g1, g2, bet].every(Boolean) || g1 < 1 || g1 > 6 || g2 < 1 || g2 > 6 || bet < 10) {
+        logEntry(casinoLog, "Invalid entry. Guess 1-6 and bet >= £10.", "WARN");
+        return;
+      }
+      if (state.balance < bet) {
+        logEntry(casinoLog, "Not enough balance to bet.", "WARN");
+        return;
+      }
+
+      showOverlay("Entering the casino...");
+      const dice1 = Math.ceil(Math.random() * 6);
+      const dice2 = Math.ceil(Math.random() * 6);
+      const sumGuess = g1 + g2;
+      const diffGuess = Math.abs(g1 - g2);
+      const sumActual = dice1 + dice2;
+      const diffActual = Math.abs(dice1 - dice2);
+
+      let outcome = "loss";
+      let delta = -bet;
+      let message = `Rolled ${dice1} & ${dice2}. You lost ${formatMoney(bet)}.`;
+      const diffMatch = diffGuess === diffActual;
+      const bothMatch = g1 === dice1 && g2 === dice2 || g1 === dice2 && g2 === dice1;
+      const oneMatch = g1 === dice1 || g1 === dice2 || g2 === dice1 || g2 === dice2;
+      const sumMatch = sumGuess === sumActual;
+
+      if (diffMatch) {
+        outcome = "diff";
+        const lossMultiplier = state.perks.riskShield ? 1.5 : 2;
+        delta = -Math.round(bet * lossMultiplier);
+        message = `Diff matched! ${dice1} & ${dice2} diff ${diffActual}. You lost ${formatMoney(-delta)}.`;
+      } else if (bothMatch) {
+        outcome = "jackpot";
+        delta = bet * 3;
+        message = `Both numbers hit! Payout: ${formatMoney(bet * 4)}.`;
+      } else if (oneMatch) {
+        outcome = "double";
+        delta = bet;
+        message = `One number hit! Payout: ${formatMoney(bet * 2)}.`;
+      } else if (sumMatch) {
+        outcome = "sum";
+        const sumBonus = state.perks.luckyCharm ? 0.75 : 0.5;
+        delta = Math.round(bet * sumBonus);
+        message = `Sum matched! Payout: ${formatMoney(Math.round(bet * (1 + sumBonus)))}.`;
+      }
+
+      if (state.garage[1].owned && delta > 0) {
+        delta = Math.round(delta * 1.05);
+        message += " Casino gold card bonus applied.";
+      }
+      if (state.garage[3].owned && delta < 0) {
+        delta = Math.round(delta * 0.9);
+        message += " Loss reduced by hypercar perk.";
+      }
+
+      state.balance += delta;
+      logEntry(casinoLog, message, "DICE");
+      addLedger(`Casino dice: ${message}`);
+      if (delta > 0) {
+        playTone("win");
+        if (state.perks.heatScrambler) {
+          state.securityHeat = Math.max(0, state.securityHeat - 1);
+        }
+      } else {
+        playTone("lose");
+      }
+      advanceLine("Casino session logged.");
+      adjustSecurityHeat(outcome === "diff" ? 2 : outcome === "loss" ? 1 : 0);
+      checkBankruptcy();
+    }
+
+    function playSideGame(type) {
+      const bet = Number(document.getElementById("betAmount").value) || 50;
+      if (state.balance < bet) {
+        logEntry(casinoLog, "Not enough balance for side game.", "WARN");
+        return;
+      }
+      let message = "";
+      let delta = -bet;
+      if (type === "slots") {
+        const symbols = ["♦", "♠", "♣", "♥", "7"];
+        const spin = Array.from({ length: 3 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+        const match = new Set(spin).size === 1;
+        if (match) {
+          delta = bet * 4;
+          message = `Slots hit ${spin.join(" ")}! Payout ${formatMoney(bet * 5)}.`;
+        } else if (spin.includes("7")) {
+          delta = Math.round(bet * 0.8);
+          message = `Lucky 7 kept you afloat. Payout ${formatMoney(Math.round(bet * 1.8))}.`;
+        } else {
+          message = `Slots landed ${spin.join(" ")}. You lost ${formatMoney(bet)}.`;
+        }
+      }
+      if (type === "coin") {
+        const call = Math.random() > 0.5 ? "Heads" : "Tails";
+        const result = Math.random() > 0.5 ? "Heads" : "Tails";
+        if (call === result) {
+          delta = bet;
+          message = `Coin Clash: ${result}. You win ${formatMoney(bet)}.`;
+        } else {
+          message = `Coin Clash: ${result}. You lost ${formatMoney(bet)}.`;
+        }
+      }
+      if (type === "roulette") {
+        const pick = Math.ceil(Math.random() * 12);
+        const roll = Math.ceil(Math.random() * 12);
+        if (pick === roll) {
+          delta = bet * 4;
+          message = `Roulette hit ${roll}. Mega payout ${formatMoney(bet * 5)}!`;
+        } else if (Math.abs(pick - roll) <= 2) {
+          delta = Math.round(bet * 0.5);
+          message = `Close call (${pick} vs ${roll}). Return ${formatMoney(Math.round(bet * 1.5))}.`;
+        } else {
+          message = `Roulette missed (${pick} vs ${roll}). You lost ${formatMoney(bet)}.`;
+        }
+      }
+      if (type === "highlow") {
+        const card = Math.ceil(Math.random() * 10);
+        const guessHigh = Math.random() > 0.5;
+        const next = Math.ceil(Math.random() * 10);
+        if ((guessHigh && next >= card) || (!guessHigh && next <= card)) {
+          delta = Math.round(bet * 1.2);
+          message = `High-Low (${card} → ${next}) win ${formatMoney(Math.round(bet * 2.2))}.`;
+        } else {
+          message = `High-Low (${card} → ${next}) lost ${formatMoney(bet)}.`;
+        }
+      }
+      state.balance += delta;
+      logEntry(casinoLog, message, "SIDE");
+      addLedger(`Side game: ${message}`);
+      playTone(delta > 0 ? "win" : "lose");
+      advanceLine("Side game played.");
+    }
+
+    function takeLoan() {
+      const amount = Number(document.getElementById("loanAmount").value);
+      const rate = Number(document.getElementById("loanRate").value);
+      if (!amount || amount < 20) {
+        logEntry(casinoLog, "Loan must be at least £20.", "BANK");
+        return;
+      }
+      const fee = Math.ceil(amount * rate);
+      state.debt += amount + fee;
+      state.balance += amount;
+      addLedger(`Loan taken: ${formatMoney(amount)} (+${formatMoney(fee)} fee).`);
+      logEntry(casinoLog, `Loan approved: ${formatMoney(amount)} cash received.`, "BANK");
+      playTone("win");
+      advanceLine("Loan processed.");
+    }
+
+    function repayLoan() {
+      const amount = Number(document.getElementById("repayAmount").value);
+      if (!amount || amount <= 0) return;
+      if (state.balance < amount) {
+        logEntry(casinoLog, "Not enough cash to repay.", "BANK");
+        return;
+      }
+      const paid = Math.min(amount, state.debt);
+      state.balance -= paid;
+      state.debt -= paid;
+      addLedger(`Loan repayment: ${formatMoney(paid)}.`);
+      advanceLine("Debt repayment logged.");
+      playTone("win");
+    }
+
+    function payProtection() {
+      if (state.balance < 150) {
+        logEntry(casinoLog, "Need £150 for protection.", "BANK");
+        return;
+      }
+      state.balance -= 150;
+      state.securityHeat = Math.max(0, state.securityHeat - 2);
+      state.reputation = "Protected";
+      addLedger("Protection fee paid.");
+      showOverlay("Protection paid...");
+      advanceLine("Protection fee logged.");
+    }
+
+    function bribeSecurity() {
+      if (state.balance < 300) {
+        logEntry(casinoLog, "Need £300 to bribe.", "BANK");
+        return;
+      }
+      state.balance -= 300;
+      state.securityHeat = 0;
+      state.reputation = "Bribed";
+      addLedger("Security bribed.");
+      showOverlay("Security bribed...");
+      advanceLine("Security bribe logged.");
+    }
+
+    function commitCrime(type) {
+      const payouts = { pickpocket: 80, rig: 200, heist: 500, hack: 300 };
+      const risk = { pickpocket: 0.2, rig: 0.35, heist: 0.55, hack: 0.4 };
+      const caught = Math.random() < risk[type];
+      if (caught) {
+        const fine = Math.ceil(payouts[type] * 0.8);
+        state.balance = Math.max(0, state.balance - fine);
+        state.securityHeat += 2;
+        state.reputation = "Wanted";
+        addLedger(`Crime failed. Fine paid: ${formatMoney(fine)}.`);
+        logEntry(casinoLog, `Caught! Paid ${formatMoney(fine)}.`, "CRIME");
+        playTone("lose");
+      } else {
+        state.balance += payouts[type];
+        state.securityHeat += 1;
+        addLedger(`Crime success: ${formatMoney(payouts[type])} gained.`);
+        logEntry(casinoLog, `Score! Earned ${formatMoney(payouts[type])}.`, "CRIME");
+        playTone("win");
+      }
+      advanceLine("Street hustle recorded.");
+    }
+
+    function invest() {
+      const amount = Number(document.getElementById("investAmount").value);
+      const type = document.getElementById("investType").value;
+      if (!amount || amount < 50) return;
+      if (state.balance < amount) {
+        logEntry(casinoLog, "Not enough cash to invest.", "INVEST");
+        return;
+      }
+      state.balance -= amount;
+      state.investments.push({ type, value: amount, cost: amount });
+      addLedger(`Investment placed: ${type} ${formatMoney(amount)}.`);
+      renderInvestments();
+      advanceLine("Investment placed.");
+    }
+
+    function adjustSecurityHeat(amount) {
+      state.securityHeat = Math.max(0, state.securityHeat + amount);
+      if (state.securityHeat >= 5) {
+        state.reputation = "Banned";
+        showOverlay("Casino lockdown! Pay protection to enter.");
+      }
+    }
+
+    function checkBankruptcy() {
+      if (state.balance > 0) return;
+      showOverlay("Balance empty. Take a loan or admit defeat.");
+    }
+
+    function handleFine() {
+      const fineBase = state.hardMode ? 120 : 80;
+      const fine = Math.ceil(fineBase * (1 + state.securityHeat * 0.2));
+      if (state.garage[2].owned) {
+        state.balance = Math.max(0, state.balance - Math.round(fine * 0.8));
+        addLedger(`Fine issued: ${formatMoney(Math.round(fine * 0.8))}.`);
+      } else {
+        state.balance = Math.max(0, state.balance - fine);
+        addLedger(`Fine issued: ${formatMoney(fine)}.`);
+      }
+      logEntry(casinoLog, "City fine issued for loitering.", "FINE");
+      playTone("lose");
+      updateUI();
+      checkBankruptcy();
+    }
+
+    function scheduleFines() {
+      clearInterval(fineTimer);
+      fineTimer = setInterval(handleFine, 25000);
+    }
+
+    function takeEmergencyLoan() {
+      const amount = 200;
+      const fee = 40;
+      state.debt += amount + fee;
+      state.balance += amount;
+      addLedger(`Emergency loan: ${formatMoney(amount)} (+${formatMoney(fee)} fee).`);
+      showOverlay("Emergency cash deployed!");
+      playTone("win");
+      advanceLine("Emergency loan issued.");
+    }
+
+    function admitDefeat() {
+      showOverlay("You admitted defeat. High score not saved.");
+      localStorage.removeItem("diceDominionHighScore");
+      state.balance = 0;
+      state.debt = 0;
+      addLedger("Defeat admitted. Game ended.");
+      updateUI();
+    }
+
+    function toggleScreen(targetId) {
+      if (targetId === "casinoScreen" && state.securityHeat >= 5) {
+        showOverlay("Casino banned. Pay protection to lower heat.");
+        playTone("lose");
+        return;
+      }
+      document.querySelectorAll(".screen").forEach((screen) => {
+        screen.classList.toggle("active", screen.id === targetId);
+      });
+      if (targetId === "casinoScreen") {
+        showOverlay("Entering the casino...");
+      }
+    }
+
+    function cashOut() {
+      if (state.balance <= 0) {
+        showOverlay("No cash to cash out.");
+        return;
+      }
+      const score = state.balance;
+      localStorage.setItem("diceDominionHighScore", String(score));
+      state.highScore = Math.max(state.highScore, score);
+      addLedger(`Cashed out with ${formatMoney(score)}.`);
+      showOverlay(`Cash out confirmed! Score saved: ${formatMoney(score)}.`);
+    }
+
+    function resetGame() {
+      localStorage.removeItem("diceDominionHighScore");
+      location.reload();
+    }
+
+    function cycleWeather() {
+      weatherIndex = (weatherIndex + 1) % weatherCycle.length;
+      updateUI();
+    }
+
+    function toggleWeather() {
+      state.weatherOn = !state.weatherOn;
+      document.querySelector(".weather-layer").style.display = state.weatherOn ? "block" : "none";
+      document.querySelector(".fog-layer").style.display = state.weatherOn ? "block" : "none";
+      document.querySelector(".lens-flare").style.display = state.weatherOn ? "block" : "none";
+      document.getElementById("toggleWeather").textContent = `Weather FX: ${state.weatherOn ? "On" : "Off"}`;
+    }
+
+    function toggleHardMode() {
+      state.hardMode = !state.hardMode;
+      document.getElementById("toggleHardMode").textContent = `Hard Mode: ${state.hardMode ? "On" : "Off"}`;
+    }
+
+    function toggleSound() {
+      state.soundOn = !state.soundOn;
+      document.getElementById("soundToggle").textContent = `Sound: ${state.soundOn ? "On" : "Off"}`;
+      playTone("click");
+    }
+
+    document.querySelectorAll("button[data-screen]").forEach((button) => {
+      button.addEventListener("click", () => {
+        toggleScreen(button.dataset.screen);
+        advanceLine("Navigation movement.");
+      });
+    });
+
+    document.getElementById("playDice").addEventListener("click", rollDice);
+    document.querySelectorAll("button[data-game]").forEach((button) => {
+      button.addEventListener("click", () => playSideGame(button.dataset.game));
+    });
+
+    document.getElementById("takeLoan").addEventListener("click", takeLoan);
+    document.getElementById("repayLoan").addEventListener("click", repayLoan);
+    document.getElementById("payProtection").addEventListener("click", payProtection);
+    document.getElementById("bribeSecurity").addEventListener("click", bribeSecurity);
+    document.getElementById("cashOut").addEventListener("click", cashOut);
+    document.getElementById("makeInvestment").addEventListener("click", invest);
+    document.getElementById("toggleHardMode").addEventListener("click", toggleHardMode);
+    document.getElementById("toggleWeather").addEventListener("click", toggleWeather);
+    document.getElementById("resetGame").addEventListener("click", resetGame);
+    document.getElementById("soundToggle").addEventListener("click", toggleSound);
+    document.getElementById("emergencyLoan").addEventListener("click", takeEmergencyLoan);
+    document.getElementById("admitDefeat").addEventListener("click", admitDefeat);
+
+    document.querySelectorAll("button[data-crime]").forEach((button) => {
+      button.addEventListener("click", () => commitCrime(button.dataset.crime));
+    });
+
+    scheduleFines();
+    setInterval(cycleWeather, 15000);
+    setInterval(applyTimedInterest, 45000);
+    renderInvestments();
+    updateUI();
+  </script>
+</body>
+</html>
