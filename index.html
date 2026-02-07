@@ -321,6 +321,8 @@
         <div class="stat"><strong>Debt</strong><div id="debt">£0</div></div>
         <div class="stat"><strong>Casino Rep</strong><div id="reputation">Clean</div></div>
         <div class="stat"><strong>Weather</strong><div id="weather">Stormy</div></div>
+        <div class="stat"><strong>High Score</strong><div id="highScore">£0</div></div>
+        <div class="stat"><strong>Perk</strong><div id="perkStatus">None</div></div>
       </div>
       <p class="muted" id="ticker">Payday in 5 lines • Fines in 25s</p>
     </section>
@@ -335,6 +337,7 @@
           <button data-screen="garageScreen">Garage</button>
           <button data-screen="crimeScreen">Street Hustles</button>
           <button data-screen="investScreen">Investments</button>
+          <button data-screen="shopScreen">Power-Up Shop</button>
           <button data-screen="statsScreen">Statements</button>
           <button data-screen="settingsScreen">Settings</button>
           <button class="danger" id="cashOut">Cash Out</button>
@@ -344,6 +347,10 @@
         <strong>Daily Pressure</strong>
         <p class="muted">Random fines, protection fees, and loan interest keep ticking. Stay active to survive.</p>
         <div class="animated-text" id="homeBanner">Waiting on your move...</div>
+        <div class="input-row">
+          <button id="emergencyLoan" class="warning">Emergency Loan (£200)</button>
+          <button id="admitDefeat" class="danger">Admit Defeat</button>
+        </div>
       </div>
     </section>
 
@@ -448,6 +455,15 @@
       <button data-screen="homeScreen">Back Home</button>
     </section>
 
+    <section class="screen" id="shopScreen">
+      <div class="panel">
+        <strong>Power-Up Shop</strong>
+        <p class="muted">Stack perks to survive the grind. One of each only.</p>
+        <ul class="list" id="shopList"></ul>
+      </div>
+      <button data-screen="homeScreen">Back Home</button>
+    </section>
+
     <section class="screen" id="statsScreen">
       <div class="panel">
         <strong>Statements</strong>
@@ -483,6 +499,12 @@
       hardMode: false,
       soundOn: true,
       weatherOn: true,
+      highScore: Number(localStorage.getItem("diceDominionHighScore") || 0),
+      perks: {
+        luckyCharm: false,
+        riskShield: false,
+        heatScrambler: false
+      },
       investments: [],
       garage: [
         { name: "Pocket Scooter", price: 300, owned: false, perk: "+1 line payout" },
@@ -490,7 +512,12 @@
         { name: "Phantom SUV", price: 2500, owned: false, perk: "fines -20%" },
         { name: "Neon Hypercar", price: 6000, owned: false, perk: "casino losses -10%" }
       ],
-      ledger: []
+      ledger: [],
+      shop: [
+        { id: "luckyCharm", name: "Lucky Charm", price: 500, perk: "Sum wins +25%" },
+        { id: "riskShield", name: "Risk Shield", price: 700, perk: "Diff losses -25%" },
+        { id: "heatScrambler", name: "Heat Scrambler", price: 400, perk: "Security heat -1 on wins" }
+      ]
     };
 
     const weatherCycle = ["Stormy", "Neon Rain", "Dusty Wind", "Foggy", "Heatwave"]; 
@@ -503,6 +530,8 @@
     const debtEl = document.getElementById("debt");
     const reputationEl = document.getElementById("reputation");
     const weatherEl = document.getElementById("weather");
+    const highScoreEl = document.getElementById("highScore");
+    const perkStatusEl = document.getElementById("perkStatus");
     const tickerEl = document.getElementById("ticker");
     const casinoLog = document.getElementById("casinoLog");
     const investLog = document.getElementById("investLog");
@@ -548,8 +577,8 @@
       }
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = type === "win" ? 880 : type === "lose" ? 220 : 440;
+      oscillator.type = type === "win" ? "triangle" : type === "lose" ? "sawtooth" : "sine";
+      oscillator.frequency.value = type === "win" ? 920 : type === "lose" ? 180 : 520;
       gain.gain.value = 0.05;
       oscillator.connect(gain);
       gain.connect(audioContext.destination);
@@ -562,10 +591,17 @@
       debtEl.textContent = formatMoney(state.debt);
       reputationEl.textContent = state.reputation;
       weatherEl.textContent = weatherCycle[weatherIndex];
+      highScoreEl.textContent = formatMoney(state.highScore);
+      perkStatusEl.textContent = [
+        state.perks.luckyCharm ? "Lucky" : null,
+        state.perks.riskShield ? "Shielded" : null,
+        state.perks.heatScrambler ? "Cool" : null
+      ].filter(Boolean).join(" • ") || "None";
       tickerEl.textContent = `Payday in ${state.payCycle - (state.lineCount % state.payCycle)} lines • Fines in 25s`;
       heatMeter.textContent = `Security Heat: ${state.securityHeat < 2 ? "Low" : state.securityHeat < 4 ? "Medium" : "High"}`;
       homeBanner.textContent = state.balance <= 0 ? "You're broke. Loan or defeat?" : "Waiting on your move...";
       renderGarage();
+      renderShop();
     }
 
     function advanceLine(activity) {
@@ -590,6 +626,15 @@
       const interest = Math.ceil(state.debt * interestRate);
       state.debt += interest;
       addLedger(`Loan interest applied: ${formatMoney(interest)} added.`);
+    }
+
+    function applyTimedInterest() {
+      if (state.debt <= 0) return;
+      const interestRate = state.hardMode ? 0.04 : 0.03;
+      const interest = Math.ceil(state.debt * interestRate);
+      state.debt += interest;
+      addLedger(`Timed interest: ${formatMoney(interest)} added.`);
+      updateUI();
     }
 
     function processInvestments() {
@@ -627,6 +672,38 @@
         li.appendChild(btn);
         list.appendChild(li);
       });
+    }
+
+    function renderShop() {
+      const list = document.getElementById("shopList");
+      if (!list) return;
+      list.innerHTML = "";
+      state.shop.forEach((item) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        const owned = state.perks[item.id];
+        btn.textContent = owned ? "Owned" : `Buy ${item.name} (${formatMoney(item.price)})`;
+        btn.disabled = owned;
+        btn.addEventListener("click", () => purchasePerk(item));
+        li.innerHTML = `<strong>${item.name}</strong><br /><span class='muted'>${item.perk}</span>`;
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function purchasePerk(item) {
+      if (state.balance < item.price) {
+        logEntry(casinoLog, "Not enough cash for power-up.", "SHOP");
+        playTone("lose");
+        return;
+      }
+      if (state.perks[item.id]) return;
+      state.balance -= item.price;
+      state.perks[item.id] = true;
+      showOverlay(`Power-up unlocked: ${item.name}`);
+      addLedger(`Power-up purchased: ${item.name} for ${formatMoney(item.price)}.`);
+      playTone("win");
+      advanceLine("Power-up purchase logged.");
     }
 
     function purchaseCar(item) {
@@ -681,8 +758,9 @@
 
       if (diffMatch) {
         outcome = "diff";
-        delta = -bet * 2;
-        message = `Diff matched! ${dice1} & ${dice2} diff ${diffActual}. You lost ${formatMoney(bet * 2)}.`;
+        const lossMultiplier = state.perks.riskShield ? 1.5 : 2;
+        delta = -Math.round(bet * lossMultiplier);
+        message = `Diff matched! ${dice1} & ${dice2} diff ${diffActual}. You lost ${formatMoney(-delta)}.`;
       } else if (bothMatch) {
         outcome = "jackpot";
         delta = bet * 3;
@@ -693,8 +771,9 @@
         message = `One number hit! Payout: ${formatMoney(bet * 2)}.`;
       } else if (sumMatch) {
         outcome = "sum";
-        delta = Math.round(bet * 0.5);
-        message = `Sum matched! Payout: ${formatMoney(Math.round(bet * 1.5))}.`;
+        const sumBonus = state.perks.luckyCharm ? 0.75 : 0.5;
+        delta = Math.round(bet * sumBonus);
+        message = `Sum matched! Payout: ${formatMoney(Math.round(bet * (1 + sumBonus)))}.`;
       }
 
       if (state.garage[1].owned && delta > 0) {
@@ -711,6 +790,9 @@
       addLedger(`Casino dice: ${message}`);
       if (delta > 0) {
         playTone("win");
+        if (state.perks.heatScrambler) {
+          state.securityHeat = Math.max(0, state.securityHeat - 1);
+        }
       } else {
         playTone("lose");
       }
@@ -785,8 +867,8 @@
     function takeLoan() {
       const amount = Number(document.getElementById("loanAmount").value);
       const rate = Number(document.getElementById("loanRate").value);
-      if (!amount || amount < 50) {
-        logEntry(casinoLog, "Loan must be at least £50.", "BANK");
+      if (!amount || amount < 20) {
+        logEntry(casinoLog, "Loan must be at least £20.", "BANK");
         return;
       }
       const fee = Math.ceil(amount * rate);
@@ -910,7 +992,32 @@
       fineTimer = setInterval(handleFine, 25000);
     }
 
+    function takeEmergencyLoan() {
+      const amount = 200;
+      const fee = 40;
+      state.debt += amount + fee;
+      state.balance += amount;
+      addLedger(`Emergency loan: ${formatMoney(amount)} (+${formatMoney(fee)} fee).`);
+      showOverlay("Emergency cash deployed!");
+      playTone("win");
+      advanceLine("Emergency loan issued.");
+    }
+
+    function admitDefeat() {
+      showOverlay("You admitted defeat. High score not saved.");
+      localStorage.removeItem("diceDominionHighScore");
+      state.balance = 0;
+      state.debt = 0;
+      addLedger("Defeat admitted. Game ended.");
+      updateUI();
+    }
+
     function toggleScreen(targetId) {
+      if (targetId === "casinoScreen" && state.securityHeat >= 5) {
+        showOverlay("Casino banned. Pay protection to lower heat.");
+        playTone("lose");
+        return;
+      }
       document.querySelectorAll(".screen").forEach((screen) => {
         screen.classList.toggle("active", screen.id === targetId);
       });
@@ -926,6 +1033,7 @@
       }
       const score = state.balance;
       localStorage.setItem("diceDominionHighScore", String(score));
+      state.highScore = Math.max(state.highScore, score);
       addLedger(`Cashed out with ${formatMoney(score)}.`);
       showOverlay(`Cash out confirmed! Score saved: ${formatMoney(score)}.`);
     }
@@ -981,6 +1089,8 @@
     document.getElementById("toggleWeather").addEventListener("click", toggleWeather);
     document.getElementById("resetGame").addEventListener("click", resetGame);
     document.getElementById("soundToggle").addEventListener("click", toggleSound);
+    document.getElementById("emergencyLoan").addEventListener("click", takeEmergencyLoan);
+    document.getElementById("admitDefeat").addEventListener("click", admitDefeat);
 
     document.querySelectorAll("button[data-crime]").forEach((button) => {
       button.addEventListener("click", () => commitCrime(button.dataset.crime));
@@ -988,6 +1098,7 @@
 
     scheduleFines();
     setInterval(cycleWeather, 15000);
+    setInterval(applyTimedInterest, 45000);
     renderInvestments();
     updateUI();
   </script>
